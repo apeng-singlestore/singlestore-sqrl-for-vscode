@@ -1,0 +1,79 @@
+{
+  "name": "singlestore-sqrl-for-vscode",
+  "displayName": "SingleStore SQrL for VSCode",
+  "description": "This extension uses GPT to magically transform natural language into SQL queries for your SingleStoreDB.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.76.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "singlestore-sqrl-for-vscode.transformCommentToSQL",
+        "title": "SQrL for VSCode: Transform Comment to SQL"
+      },
+      {
+        "command": "singlestore-sqrl-for-vscode.executeCommand",
+        "title": "SQrL for VSCode: Execute Selected SQL Query"
+      },
+      {
+        "command": "singlestore-sqrl-for-vscode.openConfigurationPage",
+        "title": "SQrL for VSCode: Open configuration page"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "singlestore-sqrl-for-vscode.transformCommentToSQL",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus && editorLangId == sql"
+      },
+      {
+        "command": "singlestore-sqlhelper.executeCommand",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus && editorLangId == sql"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/json2csv": "^5.0.3",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.76.0",
+    "@typescript-eslint/eslint-plugin": "^5.53.0",
+    "@typescript-eslint/parser": "^5.53.0",
+    "@vscode/test-electron": "^2.2.3",
+    "eslint": "^8.34.0",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "ts-loader": "^9.4.2",
+    "typescript": "^4.9.5",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "json2csv": "^6.0.0-alpha.2",
+    "langchain": "^0.0.38",
+    "mysql2": "^3.2.0",
+    "openai": "^3.2.1"
+  }
+}
