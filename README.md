@@ -4,7 +4,7 @@ SingleStore SQrL makes working with your SingleStore database in VSCode magical.
 
 ## Features
 
-1. Translate /SQRL natural language queries to SQL code! Simply write "/SQRL" followed by 
+1. Translate /SQRL natural language queries to SQL code! Simply write "/SQRL" followed by your question or description to have your answer in SQL code.
 2. Execute SQL code on a connected SingleStore database and view the results.
 
 ## Installation
