@@ -34,7 +34,7 @@
         "when": "editorTextFocus && editorLangId == sql"
       },
       {
-        "command": "singlestore-sqlhelper.executeCommand",
+        "command": "singlestore-sqrl-for-vscode.executeCommand",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
         "when": "editorTextFocus && editorLangId == sql"
@@ -75,5 +75,9 @@
     "langchain": "^0.0.38",
     "mysql2": "^3.2.0",
     "openai": "^3.2.1"
-  }
+  },
+  "repository": {
+		"type": "git",
+		"url": "https://github.com/apeng-singlestore/singlestore-sqrl-for-vscode"
+	}
 }

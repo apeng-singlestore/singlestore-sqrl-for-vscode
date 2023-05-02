@@ -113,7 +113,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	async function openConfigurationPage() {
 		// Create a webview panel for configuration
 		const panel = vscode.window.createWebviewPanel(
-			'singlestore-sqlhelper.configuration',
+			'singlestore-sqrl-for-vscode.configuration',
 			'SingleStore SQL Helper Configuration',
 			vscode.ViewColumn.One,
 			{
@@ -149,7 +149,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		openConfigurationPage();
 	}
 
-	let openConfigurationPageDisposable = vscode.commands.registerCommand('singlestore-sqlhelper.openConfigurationPage', openConfigurationPage);
+	let openConfigurationPageDisposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.openConfigurationPage', openConfigurationPage);
 
 	
 	async function execute(conn: any, command: string) {
@@ -170,7 +170,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('trying result');
 	console.log(result);
 
-	let disposable = vscode.commands.registerCommand('singlestore-sqlhelper.transformCommentToSQL', async () => {
+	let disposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.transformCommentToSQL', async () => {
 		// Get the active text editor
 		const editor = vscode.window.activeTextEditor;
 		if (editor && editor.document.languageId === 'sql') { // Check if the active file is a SQL file
@@ -228,7 +228,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		// Create a new webview panel to show the results
 		const panel = vscode.window.createWebviewPanel(
-			'singlestore-sqlhelper.results',
+			'singlestore-sqrl-for-vscode.results',
 			'SingleStore SQL Helper Results',
 			vscode.ViewColumn.Two,
 			{
@@ -288,7 +288,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
 
-	let executeCommandDisposable = vscode.commands.registerCommand('singlestore-sqlhelper.executeCommand', async () => {
+	let executeCommandDisposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.executeCommand', async () => {
 		// Get the active text editor
 		const editor = vscode.window.activeTextEditor;
 		if (editor && editor.document.languageId === 'sql') { // Check if the active file is a SQL file
