@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import * as dotenv from 'dotenv';
 import * as mysql from 'mysql2/promise';
+import { Parser } from 'node-sql-parser';
 
 import * as fs from 'fs';
 
@@ -216,17 +217,20 @@ export async function activate(context: vscode.ExtensionContext) {
 				const sqlCode = response.data.choices[0].message.content;
 
 				// Use a regular expression to check if the SQL code is pure SQL
-				const regex = /^[a-zA-Z0-9_.,()'"`$@#%^&*+-\/\s\n=<>:;{}\[\]]*$/;
-				if (!regex.test(sqlCode)) {
+				const parser = new Parser();
+				try {
+					const ast = parser.astify(sqlCode);
+					console.log(ast)
+				} catch (error) {
 					vscode.window.showErrorMessage('Invalid SQL code. Please retry.');
 					vscode.window.showErrorMessage(sqlCode);
-				} else {
-					// Replace the text after /SQRL with the generated SQL code
-					editor.edit((editBuilder) => {
-						const range = editor.selection;
-						editBuilder.replace(range, sqlCode.replace(/\n/g, ' '));
-					});
+					return;
 				}
+				// Replace the text after /SQRL with the generated SQL code
+				editor.edit((editBuilder) => {
+					const range = editor.selection;
+					editBuilder.replace(range, sqlCode.replace(/\n/g, ' '));
+				});
 
 			} else {
 				vscode.window.showErrorMessage('Please type /SQRL followed by a comment to transform.');
