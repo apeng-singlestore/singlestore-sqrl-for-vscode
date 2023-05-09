@@ -22,6 +22,13 @@ const openai = new OpenAIApi(configuration);
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
+	// Check if .env file is updated with configuration details
+	const envFile = await vscode.workspace.fs.readFile(vscode.Uri.file(__dirname + "/.env"));
+	const envContent = envFile.toString();
+	if (!envContent.includes("OPENAI_API_KEY") || !envContent.includes("DB_NAME") || !envContent.includes("DB_HOST") || !envContent.includes("DB_USER") || !envContent.includes("DB_PASSWORD")) {
+		openConfigurationPage();
+	}
+	
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
@@ -40,7 +47,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			<meta charset="UTF-8">
 			<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src vscode-resource: https:; script-src 'nonce-${nonce}';">
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>SingleStore SQL Helper Configuration</title>
+			<title>SingleStore SQRL for VSCode Configurationı</title>
 		</head>
 		<body>
 			<h1>SingleStore SQRL for VSCode Configuration</h1>
@@ -109,7 +116,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 		return text;
 	}
-
+	let db: any;
 	async function openConfigurationPage() {
 		// Create a webview panel for configuration
 		const panel = vscode.window.createWebviewPanel(
@@ -124,52 +131,42 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		// Load the HTML content of the webview panel
 		panel.webview.html = getWebviewContent();
-
+		
+		
 		// Handle messages sent from the webview panel
 		panel.webview.onDidReceiveMessage(async (message) => {
 			if (message.type === 'saveConfig') {
-				// Save the configuration to the .env file
-				const envContent = `OPENAI_API_KEY=${message.openaiKey}\nDB_NAME=${message.dbName}\nDB_HOST=${message.dbHost}\nDB_USER=${message.dbUser}\nDB_PASSWORD=${message.dbPassword}`;
-				await vscode.workspace.fs.writeFile(vscode.Uri.file(__dirname + "/.env"), Buffer.from(envContent));
+				// Validate the connection before saving the configuration to the .env file
+				try {
+					db = await mysql.createConnection({
+						host: message.dbHost,
+						user: message.dbUser,
+						password: message.dbPassword,
+						database: message.dbName
+					});
 
-				// Show a success message
-				vscode.window.showInformationMessage('Configuration saved successfully!');
+					if (db) {
+						const envContent = `OPENAI_API_KEY=${message.openaiKey}\nDB_NAME=${message.dbName}\nDB_HOST=${message.dbHost}\nDB_USER=${message.dbUser}\nDB_PASSWORD=\"${message.dbPassword}\"`;
+
+						await vscode.workspace.fs.writeFile(vscode.Uri.file(__dirname + "/.env"), Buffer.from(envContent));
+
+						const result = dotenv.config({path: envPath});
+						// Show a success message					
+						vscode.window.showInformationMessage('Configuration saved successfully! Please reload VSCode.');
+					} 
+				} catch (error) {
+					vscode.window.showErrorMessage('Failed to connect to the database. Please check your credentials and try again.');
+				}
+
 			}
-			else if(message.type === 'signup') {
+			if(message.type === 'signup') {
 				vscode.env.openExternal(vscode.Uri.parse('https://www.singlestore.com/cloud-trial/?utm_source=singlestore&utm_medium=web&utm_campaign=&campaignid=7014X000001yp4JQAQ'));
 				vscode.window.showInformationMessage('Signed up!');
 			}
 		});
 	}
 
-	// Check if .env file is updated with configuration details
-	const envFile = await vscode.workspace.fs.readFile(vscode.Uri.file(__dirname + "/.env"));
-	const envContent = envFile.toString();
-	if (!envContent.includes("OPENAI_API_KEY") || !envContent.includes("DB_NAME") || !envContent.includes("DB_HOST") || !envContent.includes("DB_USER") || !envContent.includes("DB_PASSWORD")) {
-		openConfigurationPage();
-	}
-
 	let openConfigurationPageDisposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.openConfigurationPage', openConfigurationPage);
-
-	
-	async function execute(conn: any, command: string) {
-		const [rows] = await conn.execute(
-			command
-		);
-		return rows;
-	};
-	const db = await mysql.createConnection({
-		host: process.env.DB_HOST,
-		user: process.env.DB_USER,
-		password: process.env.DB_PASSWORD,
-		database: process.env.DB_NAME
-	});
-	
-	let result = await execute(db, 'SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=' + '\"' + process.env.DB_NAME + '\"');
-	const tableSchema = JSON.stringify(result);
-	console.log('trying result');
-	console.log(result);
-
 	let disposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.transformCommentToSQL', async () => {
 		// Get the active text editor
 		const editor = vscode.window.activeTextEditor;
@@ -187,7 +184,28 @@ export async function activate(context: vscode.ExtensionContext) {
 
 				// Get the text after /SQRL
 				const commentContent = selectedText.slice(sqrlIndex + 5);
+				const config = dotenv.config({path: envPath});
+				console.log(config);
+				try {
+					db = await mysql.createConnection({
+						host: process.env.DB_HOST,
+						user: process.env.DB_USER,
+						password: process.env.DB_PASSWORD,
+						database: process.env.DB_NAME
+					});
+				} catch (error) {
+					console.log(db);
+					vscode.window.showErrorMessage('Please configure your database connection before using this command.');
+					openConfigurationPage();
+					return;
+				} 
 
+				let result = await execute(db, 'SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=' + '\"' + process.env.DB_NAME + '\"');
+				const tableSchema = JSON.stringify(result);
+				console.log('trying result');
+				console.log(result);
+				console.log(process.env.DB_NAME);
+				console.log(db);
 				// Use openai.createChatCompletion to transform the comment into SQL code
 				const response = await openai.createChatCompletion({
 					model: "gpt-3.5-turbo",
@@ -218,6 +236,38 @@ export async function activate(context: vscode.ExtensionContext) {
 			vscode.window.showErrorMessage('Please open a SQL file to use this command.');
 		}
 	});
+
+
+	let executeCommandDisposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.executeCommand', async () => {
+		// Get the active text editor
+		const editor = vscode.window.activeTextEditor;
+		if (editor && editor.document.languageId === 'sql') { // Check if the active file is a SQL file
+			// Get the selected text
+			const selectedText = editor.document.getText(editor.selection);
+			try {
+				db = await mysql.createConnection({
+					host: process.env.DB_HOST,
+					user: process.env.DB_USER,
+					password: process.env.DB_PASSWORD,
+					database: process.env.DB_NAME
+				});
+			} catch (error) {
+				vscode.window.showErrorMessage('Please configure your database connection before using this command.');
+				openConfigurationPage();
+				return;
+			}
+			await executeAndShowResults(db, selectedText);
+		} else {
+			vscode.window.showErrorMessage('Please open a SQL file to use this command.');
+		}
+	});
+
+	async function execute(conn: any, command: string) {
+		const [rows] = await conn.execute(
+			command
+		);
+		return rows;
+	};
 
 	async function executeAndShowResults(conn: any, command: string) {
 		console.log("got to execute and show");
@@ -286,27 +336,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		`;
 	}
 
-
-
-	let executeCommandDisposable = vscode.commands.registerCommand('singlestore-sqrl-for-vscode.executeCommand', async () => {
-		// Get the active text editor
-		const editor = vscode.window.activeTextEditor;
-		if (editor && editor.document.languageId === 'sql') { // Check if the active file is a SQL file
-			// Get the selected text
-			const selectedText = editor.document.getText(editor.selection);
-
-			await executeAndShowResults(db, selectedText);
-		} else {
-			vscode.window.showErrorMessage('Please open a SQL file to use this command.');
-		}
-	});
-
 	context.subscriptions.push(executeCommandDisposable);
-
 	context.subscriptions.push(openConfigurationPageDisposable);
-
-
 	context.subscriptions.push(disposable);
+	
 }
 
 // This method is called when your extension is deactivated
