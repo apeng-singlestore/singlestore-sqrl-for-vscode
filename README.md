@@ -20,7 +20,7 @@ To retrieve your SingleStore database connection credentials, follow these steps
 
 # How to use
 
-1. Open a SQL file and write '/SQRL' followed by a natural language query. Select the entire query then press Cmd + Shift + T (Mac) or Ctrl + Shift + T (Windows).
+1. Open a SQL file and write '--' followed by a natural language query. Select the entire query then press Cmd + Shift + T (Mac) or Ctrl + Shift + T (Windows).
 2. Inspect the query and make changes as necessary. It should automatically leverage table and column names from your SingleStore database.
 3. Select the generated SQL code (or your own code) and press Cmd + Shift + R to execute the query and view results in a popup window – super fast thanks to SingleStore's industry-leading performance.
 
