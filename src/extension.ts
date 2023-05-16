@@ -4,7 +4,6 @@ import * as vscode from 'vscode';
 import * as dotenv from 'dotenv';
 import * as mysql from 'mysql2/promise';
 import { Parser } from 'node-sql-parser';
-
 import * as fs from 'fs';
 
 const envPath = __dirname + '/.env';
@@ -175,16 +174,15 @@ export async function activate(context: vscode.ExtensionContext) {
 			// Get the selected text
 			const selectedText = editor.document.getText(editor.selection);
 
-			// Check if /SQRL is typed
-			const sqrlIndex = selectedText.lastIndexOf('/SQRL');
+			const sqrlIndex = selectedText.lastIndexOf('--');
 			if (sqrlIndex !== -1) {
 				const range = new vscode.Range(
 					editor.document.positionAt(sqrlIndex),
-					editor.document.positionAt(sqrlIndex + 5)
+					editor.document.positionAt(sqrlIndex + 2)
 				);
 
 				// Get the text after /SQRL
-				const commentContent = selectedText.slice(sqrlIndex + 5);
+				const commentContent = selectedText.slice(sqrlIndex + 2);
 				const config = dotenv.config({path: envPath});
 				console.log(config);
 				try {
@@ -200,40 +198,60 @@ export async function activate(context: vscode.ExtensionContext) {
 					openConfigurationPage();
 					return;
 				} 
+				
+				vscode.window.withProgress({
+					location: vscode.ProgressLocation.Notification,
+					title: "Transforming comment to SQL code...",
+					cancellable: false
+				  }, async (progress, token) => {
+					// Call execute function and wait for result
+					let result = await execute(db, 'SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=' + '\"' + process.env.DB_NAME + '\"');
+					const tableSchema = JSON.stringify(result);
+					// Use openai.createChatCompletion to transform the comment into SQL code
+					const response = await openai.createChatCompletion({
+						model: "gpt-3.5-turbo",
+						messages: [{role: "user", content: `Transform this comment into SQL code: ${commentContent}. Use this as a table schema: ${tableSchema}.`}],
+					});
 
-				let result = await execute(db, 'SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=' + '\"' + process.env.DB_NAME + '\"');
-				const tableSchema = JSON.stringify(result);
-				console.log('trying result');
-				console.log(result);
-				console.log(process.env.DB_NAME);
-				console.log(db);
-				// Use openai.createChatCompletion to transform the comment into SQL code
-				const response = await openai.createChatCompletion({
-					model: "gpt-3.5-turbo",
-					messages: [{role: "user", content: `Transform this comment into SQL code: ${commentContent}. Use this as a table schema: ${tableSchema}.`}],
-				});
+					// Get the generated SQL code
+					const sqlCode = response.data.choices[0].message.content;
 
-				// Get the generated SQL code
-				const sqlCode = response.data.choices[0].message.content;
+					// // Use a regular expression to check if the SQL code is pure SQL
+					// const regex = /^[a-zA-Z0-9_.,()'"`$@#%^&*+-\/\s\n=<>:;{}\[\]]*$/;
+					// if (!regex.test(sqlCode)) {
+					// 	vscode.window.showErrorMessage('Invalid SQL code. Please retry.');
+					// 	vscode.window.showErrorMessage(sqlCode);
+					// } else {
+					// 	// Replace the text after /SQRL with the generated SQL code
+					// 	editor.edit((editBuilder) => {
+					// 		const range = editor.selection;
+					// 		editBuilder.replace(range, sqlCode.replace(/\n/g, ' '));
+					// 	});
+					// }
 
-				// Use a regular expression to check if the SQL code is pure SQL
-				const parser = new Parser();
-				try {
-					const ast = parser.astify(sqlCode);
-					console.log(ast)
-				} catch (error) {
-					vscode.window.showErrorMessage('Invalid SQL code. Please retry.');
-					vscode.window.showErrorMessage(sqlCode);
-					return;
-				}
-				// Replace the text after /SQRL with the generated SQL code
-				editor.edit((editBuilder) => {
-					const range = editor.selection;
-					editBuilder.replace(range, sqlCode.replace(/\n/g, ' '));
-				});
+					const parser = new Parser();
+
+					try {
+						const ast = parser.astify(sqlCode);
+						editor.edit((editBuilder) => {
+							const range = editor.selection;
+							// Split the SQL code into lines
+							const lines = sqlCode.split('\n');
+							// Insert line breaks after each line
+							const formattedCode = lines.join('\n');
+							editBuilder.replace(range, formattedCode);
+						  });
+					// If there are no syntax errors, the code is valid SQL
+					} catch (error) {
+						vscode.window.showErrorMessage('Invalid SQL code. Please retry.');
+						vscode.window.showErrorMessage(sqlCode);
+					}
+
+				  });
+				
 
 			} else {
-				vscode.window.showErrorMessage('Please type /SQRL followed by a comment to transform.');
+				vscode.window.showErrorMessage('Please input a SQL comment to transform.');
 			}
 			
 		} else {
