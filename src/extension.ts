@@ -152,12 +152,28 @@ export async function activate(context: vscode.ExtensionContext) {
 
 						const result = dotenv.config({path: envPath});
 						// Show a success message					
-						vscode.window.showInformationMessage('Configuration saved successfully! Please reload VSCode.');
+						vscode.window.showInformationMessage('Successfully connected to database!');
 					} 
 				} catch (error) {
+					const envContent = `OPENAI_API_KEY=${message.openaiKey}\nDB_NAME=${message.dbName}\nDB_HOST=${message.dbHost}\nDB_USER=${message.dbUser}\nDB_PASSWORD=\"${message.dbPassword}\"`;
+					await vscode.workspace.fs.writeFile(vscode.Uri.file(__dirname + "/.env"), Buffer.from(envContent));
 					vscode.window.showErrorMessage('Failed to connect to the database. Please check your credentials and try again.');
 				}
-
+				
+				try {
+					const openaiKey = message.openaiKey;
+					const testConfig = new Configuration({
+						apiKey: openaiKey,
+					});
+					const testApi = new OpenAIApi(testConfig);
+					let testCompletion = await testApi.createChatCompletion({
+						model: "gpt-3.5-turbo",
+						messages: [{role: "user", content: "Hello world"}],
+					});
+					console.log(testCompletion.data.choices[0].message.content);
+				} catch (error) {
+					vscode.window.showErrorMessage('Failed to verify OpenAI API key.');
+				}
 			}
 			if(message.type === 'signup') {
 				vscode.env.openExternal(vscode.Uri.parse('https://www.singlestore.com/cloud-trial/?utm_source=singlestore&utm_medium=web&utm_campaign=&campaignid=7014X000001yp4JQAQ'));
@@ -205,7 +221,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					cancellable: false
 				  }, async (progress, token) => {
 					// Call execute function and wait for result
-					let result = await execute(db, 'SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=' + '\"' + process.env.DB_NAME + '\"');
+					let result = await execute(db, 'SELECT TABLE_NAME, GROUP_CONCAT(COLUMN_NAME) AS COLUMN_NAMES FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA != \'information_schema\' GROUP BY TABLE_NAME;');
 					const tableSchema = JSON.stringify(result);
 					// Use openai.createChatCompletion to transform the comment into SQL code
 					const response = await openai.createChatCompletion({
